@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>User App</title>
+
+  <!-- Vue 3 CDN -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+  <style>
+    body {
+        font-family: Arial, Helvetica, sans-serif;
+        background: #f4f6f8;
+        margin: 0;
+        padding: 0;
+        background-image: url('img/download.jpg');
+
+    }
+
+    .container {
+        max-width: 800px;
+        margin: 40px auto;
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+        text-align: center;
+        margin-bottom: 25px;
+    }
+
+    form {
+        display: grid;
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+
+    input {
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        font-size: 14px;
+    }
+
+    button {
+        padding: 12px;
+        border: none;
+        background: #4f46e5;
+        color: white;
+        font-size: 16px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background: #4338ca;
+    }
+
+    .message {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .message.error {
+    color: red;
+  }
+
+  .message.success {
+    color: green;
+  }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th, td {
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+        text-align: left;
+    }
+
+    th {
+        background: #f1f1f1;
+    }
+
+    .dates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.dates button {
+    background: #e5e7eb;
+    color: #111;
+}
+
+.dates button.selected {
+    background: #22c55e;
+    color: white;
+}
+
+  </style>
+</head>
+<body>
+
+<div id="app" class="container">
+  <h1>Usuarios</h1>
+
+  <hr style="margin: 30px 0;">
+
+  <h2>Fechas disponibles</h2>
+
+  <div v-if="dates.length === 0">
+    No hay fechas disponibles
+  </div>
+
+  <div class="dates">
+    <button
+            v-for="d in dates"
+            :key="d.id"
+            @click="selectDate(d)"
+            :class="{ selected: selectedDate && selectedDate.id === d.id }"
+    >
+      {{ d.date }}
+    </button>
+  </div>
+
+  <div v-if="selectedDate" style="margin-top: 15px;">
+    <strong>Fecha seleccionada:</strong> {{ selectedDate.date }}
+  </div>
+
+
+  <form @submit.prevent="submitForm">
+    <input v-model="user.name" placeholder="Nombre" required>
+    <input v-model="user.email" placeholder="Email" required>
+    <input v-model="user.phone" placeholder="Teléfono" required>
+
+    <button type="submit">Guardar usuario</button>
+  </form>
+
+  <div
+          class="message"
+          :class="messageType"
+          v-if="message"
+  >
+    {{ message }}
+  </div>
+
+
+  <table v-if="users.length">
+    <thead>
+    <tr>
+      <th>Nombre</th>
+      <th>Email</th>
+      <th>Teléfono</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr v-for="u in users" :key="u.id">
+      <td>{{ u.name }}</td>
+      <td>{{ u.email }}</td>
+      <td>{{ u.phone }}</td>
+    </tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+  const API_URL = 'https://user-api7-0.onrender.com'
+
+
+  const { createApp } = Vue
+
+  createApp({
+    data() {
+      return {
+        users: [],
+        dates: [],
+        selectedDate: null,
+        user: {
+          name: '',
+          email: '',
+          phone: ''
+        },
+        message: '',
+        messageType: ''
+      }
+    },
+    mounted() {
+      this.loadUsers()
+      this.loadDates()
+    },
+    methods: {
+      async loadUsers() {
+        const response = await fetch(`${API_URL}/users`)
+        this.users = await response.json()
+      },
+
+      async loadDates() {
+        const response = await fetch(`${API_URL}/dates`)
+        this.dates = await response.json()
+      },
+
+      selectDate(date) {
+        this.selectedDate =
+          this.selectedDate && this.selectedDate.id === date.id
+            ? null
+            : date
+      },
+
+      async submitForm() {
+        if (!this.selectedDate) {
+          alert('Selecciona una fecha primero')
+          return
+        }
+
+        const response = await fetch(`${API_URL}/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...this.user,
+            dateId: this.selectedDate.id
+          })
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          this.message = errorData.violations
+            ? errorData.violations.map(v => v.message).join(', ')
+            : 'Error al guardar el usuario'
+          this.messageType = 'error'
+          return
+        }
+
+        this.message = 'Usuario guardado correctamente'
+        this.messageType = 'success'
+        this.user = { name: '', email: '', phone: '' }
+        this.selectedDate = null
+        this.loadUsers()
+        this.loadDates()
+      }
+    }
+  }).mount('#app')
+</script>
+</body>
+</html>
